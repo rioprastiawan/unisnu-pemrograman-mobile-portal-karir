@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/job.dart';
 import '../services/job_service.dart';
+import '../services/bookmark_service.dart';
+import '../services/application_service.dart';
+import 'job_application_screen.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final int jobId;
@@ -17,6 +20,8 @@ class JobDetailScreen extends StatefulWidget {
 class _JobDetailScreenState extends State<JobDetailScreen> {
   Job? job;
   bool isLoading = true;
+  bool isBookmarked = false;
+  bool hasApplied = false;
 
   @override
   void initState() {
@@ -31,8 +36,12 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
     try {
       final jobDetail = await JobService.getJobById(widget.jobId);
+      final bookmarked = await BookmarkService.isBookmarked(widget.jobId);
+      final applied = await ApplicationService.hasAppliedToJob(widget.jobId);
       setState(() {
         job = jobDetail;
+        isBookmarked = bookmarked;
+        hasApplied = applied;
         isLoading = false;
       });
     } catch (e) {
@@ -47,6 +56,24 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     }
   }
 
+  Future<void> _toggleBookmark() async {
+    await BookmarkService.toggleBookmark(widget.jobId);
+    setState(() {
+      isBookmarked = !isBookmarked;
+    });
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isBookmarked ? 'Job ditambahkan ke favorit' : 'Job dihapus dari favorit',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   String formatDate(DateTime date) {
     final months = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -55,25 +82,19 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-  void applyJob() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Aplikasi Lowongan'),
-          content: Text(
-            'Terima kasih atas minat Anda pada posisi ${job?.title}! '
-            'Ini adalah aplikasi demo. Dalam sistem nyata, ini akan mengarahkan ke form aplikasi atau email.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
+  Future<void> applyJob() async {
+    if (job == null) return;
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => JobApplicationScreen(job: job!),
+      ),
     );
+
+    if (result == true) {
+      loadJobDetail();
+    }
   }
 
   @override
@@ -90,6 +111,15 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         ),
         backgroundColor: Colors.indigo,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            onPressed: _toggleBookmark,
+            icon: Icon(
+              isBookmarked ? Icons.favorite : Icons.favorite_border,
+              color: Colors.white,
+            ),
+          ),
+        ],
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -366,9 +396,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       child: SizedBox(
         width: double.infinity,
         child: ElevatedButton(
-          onPressed: applyJob,
+          onPressed: hasApplied ? null : applyJob,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.indigo,
+            backgroundColor: hasApplied ? Colors.grey : Colors.indigo,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
@@ -376,9 +406,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             ),
             elevation: 2,
           ),
-          child: const Text(
-            'Lamar Sekarang',
-            style: TextStyle(
+          child: Text(
+            hasApplied ? 'Sudah Melamar' : 'Lamar Sekarang',
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),

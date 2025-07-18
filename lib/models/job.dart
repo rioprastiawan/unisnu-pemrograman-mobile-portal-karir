@@ -9,6 +9,8 @@ class Job {
   final List<String> requirements;
   final List<String> benefits;
   final DateTime postedDate;
+  final String categoryId;
+  final String categoryName;
 
   Job({
     required this.id,
@@ -21,6 +23,8 @@ class Job {
     required this.requirements,
     required this.benefits,
     required this.postedDate,
+    required this.categoryId,
+    required this.categoryName,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) {
@@ -35,6 +39,8 @@ class Job {
       requirements: List<String>.from(json['requirements']),
       benefits: List<String>.from(json['benefits']),
       postedDate: DateTime.parse(json['postedDate']),
+      categoryId: json['categoryId'] ?? 'others',
+      categoryName: json['categoryName'] ?? 'Others',
     );
   }
 
@@ -50,6 +56,8 @@ class Job {
       'requirements': requirements,
       'benefits': benefits,
       'postedDate': postedDate.toIso8601String(),
+      'categoryId': categoryId,
+      'categoryName': categoryName,
     };
   }
 }
